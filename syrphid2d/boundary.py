@@ -36,10 +36,10 @@ class Boundary:
     def set_rho(self, rho):
         c0 = 4.0/3.0
         c1 = 1.0/3.0
-        rho = rho.at[ 0, :].set(c0*rho[ 1, :] + c1*rho[ 2, :])
-        rho = rho.at[-1, :].set(c0*rho[-2, :] + c1*rho[-3, :])
-        rho = rho.at[ :, 0].set(c0*rho[ :, 1] + c1*rho[ :, 2])
-        rho = rho.at[ :,-1].set(c0*rho[ :,-2] + c1*rho[ :,-3])
+        rho = rho.at[ 0, :].set(c0*rho[ 1, :] - c1*rho[ 2, :])
+        rho = rho.at[-1, :].set(c0*rho[-2, :] - c1*rho[-3, :])
+        rho = rho.at[ :, 0].set(c0*rho[ :, 1] - c1*rho[ :, 2])
+        rho = rho.at[ :,-1].set(c0*rho[ :,-2] - c1*rho[ :,-3])
         return rho
 
 
@@ -107,8 +107,8 @@ class LeftBoundarySide(BoundarySide):
         return u, v
 
     def set_outflow(self, u, v):
-        u = u.at[0,:].set(self.vel.x[1,:])
-        v = v.at[0,:].set(self.vel.y[1,:])
+        u = u.at[0,:].set(u[1,:])
+        v = v.at[0,:].set(v[1,:])
         return u, v
 
 
@@ -138,8 +138,8 @@ class RightBoundarySide(BoundarySide):
         return u, v
 
     def set_outflow(self, u, v):
-        u = u.at[-1,:].set(self.vel.x[-2,:])
-        v = v.at[-1,:].set(self.vel.y[-2,:])
+        u = u.at[-1,:].set(u[-2,:])
+        v = v.at[-1,:].set(v[-2,:])
         return u, v
 
 
@@ -169,8 +169,8 @@ class UpperBoundarySide(BoundarySide):
         return u, v
 
     def set_outflow(self, u, v):
-        u = u.at[:,-1].set(self.vel.x[:,-2])
-        v = v.at[:,-1].set(self.vel.y[:,-2])
+        u = u.at[:,-1].set(u[:,-2])
+        v = v.at[:,-1].set(v[:,-2])
         return u, v
 
 
@@ -200,6 +200,6 @@ class LowerBoundarySide(BoundarySide):
         return u, v
 
     def set_outflow(self, u, v):
-        u = u.at[:,0].set(self.vel.x[:,1])
-        v = v.at[:,0].set(self.vel.y[:,1])
+        u = u.at[:,0].set(u[:,1])
+        v = v.at[:,0].set(v[:,1])
         return u, v

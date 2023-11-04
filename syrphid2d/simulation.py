@@ -1,8 +1,10 @@
+import time
 import json
 import pickle
 import pathlib
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
+from  matplotlib.animation import FuncAnimation
 from jax import jit 
 from .config import Config
 from .lattice import Lattice
@@ -32,6 +34,8 @@ class Simulation:
         self.setup_save()
         state = initialize_state(self.config, self.lattice)
         state = self.jit_set_boundaries(state)
+        if self.config['plots']['animation']['enabled']:
+            self.setup_animation(state)
         while not state['done']:
             state = self.jit_update_iter(state)
             state = self.jit_predictor(state)
@@ -40,8 +44,6 @@ class Simulation:
             state = self.jit_isdone(state)
             self.display(state)
             self.save(state)
-            #if state['n'] == 10:
-            #    state['done'] = True
 
 
     def set_boundaries(self,state):
@@ -65,18 +67,10 @@ class Simulation:
         state['vel']['last']['u'] = state['vel']['curr']['u']
         state['vel']['last']['v'] = state['vel']['curr']['v']
 
-        # Initialize matrices for new predictor state
-        state['rho']['pred']      = jnp.zeros_like(state['rho']['pred'])
-        state['vel']['pred']['u'] = jnp.zeros_like(state['vel']['pred']['u'])
-        state['vel']['pred']['v'] = jnp.zeros_like(state['vel']['pred']['v'])
-
-        # Get interior slices for rho, u and v predictor states
-        rho_pred = state['rho']['pred'][1:-1, 1:-1]
-        # CHECK THIS ... this is really rho*u and rho*v
-        # -----------------------------------------------
-        u_pred   = state['vel']['pred']['u'][1:-1, 1:-1]
-        v_pred   = state['vel']['pred']['v'][1:-1, 1:-1]
-        # -----------------------------------------------
+        # Initialize rho, rho*u, and rho*v matricies for predictor step
+        rho_pred     = jnp.zeros((num_x-2, num_y-2))
+        rho_u_pred   = jnp.zeros((num_x-2, num_y-2))
+        rho_v_pred   = jnp.zeros((num_x-2, num_y-2))
 
         for e, w in zip(self.lattice.e, self.lattice.w):
 
@@ -88,21 +82,18 @@ class Simulation:
             my = num_y + ny - 2  # slice end y index
 
             # Get slices of current state for equilibrium calculation
-            rho_curr = state['rho']['curr'][nx:mx, ny:my] 
-            u_curr   = state['vel']['curr']['u'][nx:mx, ny:my]
-            v_curr   = state['vel']['curr']['v'][nx:mx, ny:my]
+            rho_curr_slice = state['rho']['curr'][nx:mx, ny:my] 
+            u_curr_slice   = state['vel']['curr']['u'][nx:mx, ny:my]
+            v_curr_slice   = state['vel']['curr']['v'][nx:mx, ny:my]
 
             # Compute equilibrium function and update predictor rho, u and v  
-            feq = equilib(rho_curr, u_curr, v_curr, e, w, *avals) 
-            rho_pred += feq
-            u_pred   += feq*ex
-            v_pred   += feq*ey
+            feq = equilib(rho_curr_slice, u_curr_slice, v_curr_slice, e, w, *avals) 
+            rho_pred   += feq
+            rho_u_pred += feq*ex
+            rho_v_pred += feq*ey
 
-        # AND THIS 
-        # ------------------------
-        u_pred /= rho_pred
-        v_pred /= rho_pred
-        # ------------------------
+        u_pred = rho_u_pred/rho_pred
+        v_pred = rho_v_pred/rho_pred
 
         # Update state 
         state['rho']['pred']      = state['rho']['pred'].at[1:-1,1:-1].set(rho_pred)
@@ -140,12 +131,12 @@ class Simulation:
             my = num_y + ny - 2  # slice end y index
 
             # Get slices for rho, u and v for equilibrium calculation
-            rho_pred = state['rho']['pred'][nx:mx, ny:my] 
-            u_pred   = state['vel']['pred']['u'][nx:mx, ny:my] 
-            v_pred   = state['vel']['pred']['v'][nx:mx, ny:my] 
+            rho_pred_slice = state['rho']['pred'][nx:mx, ny:my] 
+            u_pred_slice   = state['vel']['pred']['u'][nx:mx, ny:my] 
+            v_pred_slice   = state['vel']['pred']['v'][nx:mx, ny:my] 
 
             # Compute equilibrium function and update rho*u and rho*v
-            feq = equilib(rho_pred, u_pred, v_pred, e, w, *avals) 
+            feq = equilib(rho_pred_slice, u_pred_slice, v_pred_slice, e, w, *avals) 
             rho_u_curr += (tau - 1)*feq*ex
             rho_v_curr += (tau - 1)*feq*ey
 
@@ -163,7 +154,7 @@ class Simulation:
         # Update state
         state['rho']['curr']      = state['rho']['curr'].at[1:-1, 1:-1].set(rho_pred)
         state['vel']['curr']['u'] = state['vel']['curr']['u'].at[1:-1, 1:-1].set(u_curr)
-        state['vel']['curr']['v'] = state['vel']['curr']['u'].at[1:-1, 1:-1].set(v_curr)
+        state['vel']['curr']['v'] = state['vel']['curr']['v'].at[1:-1, 1:-1].set(v_curr)
 
         # Set boundary condition
         state['rho']['curr'] = self.boundary.jit_set_rho(state['rho']['curr'])
@@ -195,10 +186,11 @@ class Simulation:
             filename = f'data_{self.save_cnt:0{npads}d}.pkl'
             filepath = pathlib.Path(self.save_dir, filename)
             print(f'saving: {filepath}')
-            #with open(filepath, 'wb') as f:
-            #    data = {'config': self.config, 'state': state}
-            #    pickle.dump(data, f)
-            self.plot(state)
+            with open(filepath, 'wb') as f:
+                data = {'config': self.config, 'state': state}
+                pickle.dump(data, f)
+            if self.config['plots']['animation']['enabled']:
+                self.update_animation(state)
                 
 
     def setup_save(self):
@@ -206,16 +198,41 @@ class Simulation:
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_cnt = 0
 
+
     def plot(self, state):
-        x, y = jnp.meshgrid(state['x'], state['y'])
+        x, y = jnp.meshgrid(state['x'], state['y'], indexing='ij')
+        n = state['n']
+        t = state['t']
         u = state['vel']['curr']['u']
         v = state['vel']['curr']['v']
 
-        fig, ax = plt.subplots(1,1)
-        plt.quiver(x, y, u, v)
-        plt.show()
+        fig, ax = plt.subplots(1,1, figsize=(10,9))
+        quiver = plt.quiver(x, y, u, v, scale=3.0)
+        ax.set_title(f'n: {n:06d}, t: {t:8.2f}s')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.axis('equal')
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        plt.pause(0.001)
+        return fig, ax, quiver 
 
 
+    def setup_animation(self, state):
+        plt.ion()
+        self.anim_fig, self.anim_ax, self.anim_quiver = self.plot(state)
+
+
+    def update_animation(self, state):
+        n = state['n']
+        t = state['t']
+        u = state['vel']['curr']['u']
+        v = state['vel']['curr']['v']
+        self.anim_ax.set_title(f'n: {n:06d}, t: {t:8.2f}s')
+        self.anim_quiver.set_UVC(u,v)
+        self.anim_fig.canvas.draw()
+        self.anim_fig.canvas.flush_events()
+        plt.pause(0.001)
 
     def load_config(self, config):
         return config if isinstance(config, Config) else Config(filename=config)

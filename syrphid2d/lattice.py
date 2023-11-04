@@ -6,7 +6,7 @@ class Lattice:
 
     def __init__(self):
         self.num = 9                 # Number of lattice vectors
-        self.cs = jnp.sqrt(1/3.0)    # Lattice speed of sound
+        self.cs = 1/jnp.sqrt(3.0)    # Lattice speed of sound
         self.a0 = 1/(self.cs**2)     # 1st equilib function constant 
         self.a1 = 1/(2*self.cs**4)   # 2nd equilib function constant 
         self.a2 = 1/(2*self.cs**2)   # 3rd equilib function constant 
