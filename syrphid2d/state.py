@@ -25,6 +25,8 @@ def initialize_state(config, lattice):
     x = jnp.linspace(0, len_x, num_x) 
     y = jnp.linspace(0, len_y, num_y)
     grid_x, grid_y = jnp.meshgrid(x, y, indexing='ij')
+    state['x'] = x
+    state['y'] = y
     state['num_x'] = num_x
     state['num_y'] = num_y
 
@@ -56,35 +58,3 @@ def create_velocity_mesh(num_x, num_y, config):
     return {'u': u, 'v': v}
 
 
-
-#def create_masks(num_x, num_y):
-#    # Mesh indices
-#    indx, indy = jnp.meshgrid(
-#            jnp.arange(num_x, dtype=jnp.uint32), 
-#            jnp.arange(num_y, dtype=jnp.uint32), 
-#            indexing='ij',
-#            )
-#
-#    # Create masks for boundaries
-#    boundary_upper = (indy == (num_y-1))
-#    boundary_lower = (indy == 0)
-#    boundary_left  = (indx == 0)
-#    boundary_right = (indx == (num_x-1))
-#    boundary_all = jnp.logical_or(
-#            jnp.logical_or(boundary_upper, boundary_lower), 
-#            jnp.logical_or(boundary_left,  boundary_right),
-#            )
-#
-#    # Create mask for interior points
-#    interior = jnp.logical_not(boundary_all)
-#    masks = { 
-#            'interior': interior,
-#            'boundary': {
-#                'all'   : boundary_all,
-#                'upper' : boundary_upper, 
-#                'lower' : boundary_lower,
-#                'left'  : boundary_left, 
-#                'right' : boundary_right,
-#                }
-#            }
-#    return masks

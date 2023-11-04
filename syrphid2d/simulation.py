@@ -1,8 +1,9 @@
 import json
 import pickle
 import pathlib
+import matplotlib.pyplot as plt
 import jax.numpy as jnp
-from jax import jit
+from jax import jit 
 from .config import Config
 from .lattice import Lattice
 from .boundary import Boundary
@@ -20,7 +21,6 @@ class Simulation:
 
         # Jit compiled versions of methods
         self.jit_update_iter = jit(self.update_iter)
-        self.jit_set_boundary = jit(self.boundary.set)
         self.jit_set_boundaries = jit(self.set_boundaries)
         self.jit_predictor = jit(self.predictor)
         self.jit_corrector = jit(self.corrector)
@@ -40,11 +40,12 @@ class Simulation:
             state = self.jit_isdone(state)
             self.display(state)
             self.save(state)
+            #if state['n'] == 10:
+            #    state['done'] = True
 
 
     def set_boundaries(self,state):
-        for name in state['vel']:
-            state['vel'][name] = self.jit_set_boundary(state['vel'][name])
+        state = self.boundary.jit_set(state)
         return state
 
 
@@ -71,8 +72,11 @@ class Simulation:
 
         # Get interior slices for rho, u and v predictor states
         rho_pred = state['rho']['pred'][1:-1, 1:-1]
+        # CHECK THIS ... this is really rho*u and rho*v
+        # -----------------------------------------------
         u_pred   = state['vel']['pred']['u'][1:-1, 1:-1]
         v_pred   = state['vel']['pred']['v'][1:-1, 1:-1]
+        # -----------------------------------------------
 
         for e, w in zip(self.lattice.e, self.lattice.w):
 
@@ -94,13 +98,20 @@ class Simulation:
             u_pred   += feq*ex
             v_pred   += feq*ey
 
+        # AND THIS 
+        # ------------------------
+        u_pred /= rho_pred
+        v_pred /= rho_pred
+        # ------------------------
+
         # Update state 
         state['rho']['pred']      = state['rho']['pred'].at[1:-1,1:-1].set(rho_pred)
         state['vel']['pred']['u'] = state['vel']['pred']['u'].at[1:-1,1:-1].set(u_pred)
         state['vel']['pred']['v'] = state['vel']['pred']['v'].at[1:-1,1:-1].set(v_pred)
 
         # Set boundary condition 
-        state['vel']['pred']      = self.jit_set_boundary(state['vel']['curr'])
+        state['vel']['pred'] = self.boundary.jit_set_vel(state['vel']['pred'])
+        state['rho']['pred'] = self.boundary.jit_set_rho(state['rho']['pred'])
 
         return state
 
@@ -155,7 +166,8 @@ class Simulation:
         state['vel']['curr']['v'] = state['vel']['curr']['u'].at[1:-1, 1:-1].set(v_curr)
 
         # Set boundary condition
-        state['vel']['curr'] = self.jit_set_boundary(state['vel']['curr'])
+        state['rho']['curr'] = self.boundary.jit_set_rho(state['rho']['curr'])
+        state['vel']['curr'] = self.boundary.jit_set_vel(state['vel']['curr'])
 
         return state
 
@@ -183,15 +195,26 @@ class Simulation:
             filename = f'data_{self.save_cnt:0{npads}d}.pkl'
             filepath = pathlib.Path(self.save_dir, filename)
             print(f'saving: {filepath}')
-            with open(filepath, 'wb') as f:
-                data = {'config': self.config, 'state': state}
-                pickle.dump(data, f)
+            #with open(filepath, 'wb') as f:
+            #    data = {'config': self.config, 'state': state}
+            #    pickle.dump(data, f)
+            self.plot(state)
                 
 
     def setup_save(self):
         self.save_dir = pathlib.Path(self.config['save']['directory']).expanduser()
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_cnt = 0
+
+    def plot(self, state):
+        x, y = jnp.meshgrid(state['x'], state['y'])
+        u = state['vel']['curr']['u']
+        v = state['vel']['curr']['v']
+
+        fig, ax = plt.subplots(1,1)
+        plt.quiver(x, y, u, v)
+        plt.show()
+
 
 
     def load_config(self, config):

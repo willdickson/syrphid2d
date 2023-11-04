@@ -1,4 +1,4 @@
-import jax
+from jax import jit
 
 class Boundary:
 
@@ -9,6 +9,9 @@ class Boundary:
         self.lower = LowerBoundarySide(config)
         self.sides = [self.left, self.right, self.upper, self.lower]
         self.sort_sides()
+        self.jit_set = jit(self.set)
+        self.jit_set_vel = jit(self.set_vel)
+        self.jit_set_rho = jit(self.set_rho)
 
     def sort_sides(self):
         type_to_sort_key = { 
@@ -21,7 +24,26 @@ class Boundary:
         sort_key_func = lambda side : type_to_sort_key[side.type]
         self.sides.sort(key=sort_key_func)
 
-    def set(self, vel):
+
+    def set(self, state):
+        for name in state['rho']:
+            state['rho'][name] = self.set_rho(state['rho'][name])
+        for name in state['vel']:
+            state['vel'][name] = self.jit_set_vel(state['vel'][name])
+        return state
+
+
+    def set_rho(self, rho):
+        c0 = 4.0/3.0
+        c1 = 1.0/3.0
+        rho = rho.at[ 0, :].set(c0*rho[ 1, :] + c1*rho[ 2, :])
+        rho = rho.at[-1, :].set(c0*rho[-2, :] + c1*rho[-3, :])
+        rho = rho.at[ :, 0].set(c0*rho[ :, 1] + c1*rho[ :, 2])
+        rho = rho.at[ :,-1].set(c0*rho[ :,-2] + c1*rho[ :,-3])
+        return rho
+
+
+    def set_vel(self, vel):
         for side in self.sides:
             vel['u'], vel['v'] = side.set(vel['u'], vel['v'])
         return vel
@@ -32,11 +54,11 @@ class BoundarySide:
 
     def __init__(self, config, side):
         self.type_to_func = {
-                'slip'    : jax.jit(self.set_slip),
-                'noslip'  : jax.jit(self.set_noslip),
-                'moving'  : jax.jit(self.set_moving),
-                'inflow'  : jax.jit(self.set_inflow),
-                'outflow' : jax.jit(self.set_outflow),
+                'slip'    : jit(self.set_slip),
+                'noslip'  : jit(self.set_noslip),
+                'moving'  : jit(self.set_moving),
+                'inflow'  : jit(self.set_inflow),
+                'outflow' : jit(self.set_outflow),
                 }
         self.name = side
         self.type = config['boundary'][side]['type']
