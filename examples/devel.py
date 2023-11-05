@@ -3,7 +3,10 @@ import syrphid2d
 import jax.numpy as jnp
 import numpy as np
 
-sim = syrphid2d.Simulation('lid_driven_cavity.toml')
+#filename = 'lid_driven_cavity.toml'
+filename = 'pipe_flow.toml'
+
+sim = syrphid2d.Simulation(filename)
 sim.config.print()
 sim.run()
 

@@ -1,15 +1,15 @@
 [mesh]
-ds = 0.005            
-len.x = 1.0
-len.y = 1.0
+ds = 0.02            
+len.x = 8.0
+len.y = 2.0
 
 [plots.animation]
-enabled = false 
+enabled = true 
 
 [save]
 nstep = 100 
 npads = 6
-directory = '~/work/simdata/driven_cavity'
+directory = '~/work/simdata/pipe_flow'
 
 [fluid]
 kvisc   = 2.0e-5     
@@ -21,16 +21,16 @@ velocity.x = 0.0
 velocity.y = 0.0
 
 [boundary.left]
-type = 'noslip'
-value = nan 
+type = 'inflow'
+value = 0.1 
 
 [boundary.right]
-type = 'noslip'
+type = 'outflow'
 value = nan 
 
 [boundary.upper]
-type ='moving'
-value = 0.1 
+type ='noslip'
+value = nan 
 
 [boundary.lower]
 type = 'noslip'
