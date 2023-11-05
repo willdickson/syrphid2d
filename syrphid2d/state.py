@@ -30,19 +30,22 @@ def initialize_state(config, lattice):
     state['num_x'] = num_x
     state['num_y'] = num_y
 
-    # Create meshes for density
-    state['rho'] = { 
-            'last' : jnp.full((num_x, num_y), density),
-            'pred' : jnp.full((num_x, num_y), density),
-            'curr' : jnp.full((num_x, num_y), density),
+    # Create meshes for density and velocity
+    state['last'] = {
+            'rho' : jnp.full((num_x, num_y), density),
+            'vel' : create_velocity_mesh(num_x, num_y, config),
             }
 
-    # Create meshes for velocities 
-    state['vel'] = {
-            'last' : create_velocity_mesh(num_x, num_y, config),
-            'pred' : create_velocity_mesh(num_x, num_y, config),
-            'curr' : create_velocity_mesh(num_x, num_y, config),
+    state['pred'] = {
+            'rho' : jnp.full((num_x, num_y), density),
+            'vel' : create_velocity_mesh(num_x, num_y, config),
             }
+
+    state['curr'] = {
+            'rho' : jnp.full((num_x, num_y), density),
+            'vel' : create_velocity_mesh(num_x, num_y, config),
+            }
+
     return state
 
 

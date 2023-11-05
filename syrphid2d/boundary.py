@@ -26,10 +26,9 @@ class Boundary:
 
 
     def set(self, state):
-        for name in state['rho']:
-            state['rho'][name] = self.set_rho(state['rho'][name])
-        for name in state['vel']:
-            state['vel'][name] = self.jit_set_vel(state['vel'][name])
+        for name in ['last', 'pred', 'curr']:
+            state[name]['rho'] = self.set_rho(state[name]['rho'])
+            state[name]['vel'] = self.jit_set_vel(state[name]['vel'])
         return state
 
 

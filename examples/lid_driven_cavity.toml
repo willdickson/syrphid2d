@@ -5,11 +5,12 @@ len.y = 1.0
 
 [plots.animation]
 enabled = false 
+nstep = 50
 
 [save]
 nstep = 100 
 npads = 6
-directory = '~/work/simdata/driven_cavity'
+directory = '~/work/simdata/lid_driven_cavity'
 
 [fluid]
 kvisc   = 2.0e-5     
