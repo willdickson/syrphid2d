@@ -1,0 +1,51 @@
+[mesh]
+ds = 0.01            
+len.x = 8.0
+len.y = 2.0
+
+[plots.animation]
+enabled = false 
+nstep = 50
+
+[save]
+nstep = 100 
+npads = 6
+directory = '~/work/simdata/cylinder'
+
+[fluid]
+kvisc   = 2.0e-5     
+density = 1.0        
+
+[initial]
+type = 'constant'
+velocity.x = 0.0
+velocity.y = 0.0
+
+[boundary.left]
+type = 'inflow'
+value = 0.1 
+
+[boundary.right]
+type = 'outflow'
+value = nan 
+
+[boundary.upper]
+type ='slip'
+value = nan 
+
+[boundary.lower]
+type = 'slip'
+value = nan
+
+[stop]       
+type  = "time"       
+time  = 500.0         
+etol  = nan
+
+[bodies.cylinder]
+file = 'cylinder.toml'
+
+
+
+
+
